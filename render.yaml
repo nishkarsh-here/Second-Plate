@@ -1,0 +1,35 @@
+# Render Blueprint — provisions PostgreSQL + the API together, with the database
+# URL injected automatically (no secrets to copy/paste).
+#
+#   Render Dashboard → New → Blueprint → pick this repo → Apply.
+#
+# On boot the API runs migrations, seeds (if empty), trains the model, then serves.
+# (If Render rejects `runtime: docker`, rename that key to `env: docker`.)
+databases:
+  - name: secondplate-db
+    databaseName: secondplate
+    user: secondplate
+    plan: free
+    region: singapore
+
+services:
+  - type: web
+    name: secondplate-api
+    runtime: docker
+    plan: free
+    region: singapore
+    rootDir: backend
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: secondplate-db
+          property: connectionString
+      - key: ENVIRONMENT
+        value: production
+      # Allow any Vercel domain (preview + production) without knowing it ahead of time.
+      - key: CORS_ORIGIN_REGEX
+        value: https://.*\.vercel\.app
+      - key: CORS_ORIGINS
+        value: http://localhost:5173,http://localhost:8080

@@ -34,6 +34,8 @@ class Settings(BaseSettings):
 
     # --- CORS ---
     cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    # Optional regex for dynamic origins (e.g. Vercel preview/prod *.vercel.app).
+    cors_origin_regex: str | None = None
 
     # --- ML ---
     model_dir: str = "app/ml/artifacts"
@@ -48,6 +50,18 @@ class Settings(BaseSettings):
         """Accept a comma-separated string from the environment."""
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
+        return value
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _normalize_db_url(cls, value: object) -> object:
+        """Managed hosts (Render/Heroku) hand out ``postgres://`` URLs, but
+        SQLAlchemy 2.0 needs an explicit driver. Normalise to psycopg2."""
+        if isinstance(value, str):
+            if value.startswith("postgres://"):
+                return "postgresql+psycopg2://" + value[len("postgres://") :]
+            if value.startswith("postgresql://"):
+                return "postgresql+psycopg2://" + value[len("postgresql://") :]
         return value
 
     @property

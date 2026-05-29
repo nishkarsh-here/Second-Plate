@@ -362,6 +362,13 @@ npm run dev                     # http://localhost:5173 (proxies /api -> :8000)
 
 ### Backend + database → Render
 
+**Recommended — Blueprint (one step):** in Render, **New → Blueprint**, select
+this repo and click **Apply**. [`render.yaml`](render.yaml) provisions the
+Postgres database *and* the API together and injects `DATABASE_URL`
+automatically — nothing to copy/paste. Then jump to the Vercel section.
+
+**Manual alternative:**
+
 1. **Create a PostgreSQL instance** (Render → New → PostgreSQL). Copy its
    *Internal Database URL*.
 2. **Create a Web Service** from this repo:
@@ -384,7 +391,8 @@ npm run dev                     # http://localhost:5173 (proxies /api -> :8000)
    - Framework preset: **Vite** · Build: `npm run build` · Output: `dist`
 2. Env var: `VITE_API_BASE` = your Render API URL
    (e.g. `https://secondplate-api.onrender.com`).
-3. Deploy. Add the Vercel domain to the backend's `CORS_ORIGINS`.
+3. Deploy. CORS for `*.vercel.app` is already allowed via `CORS_ORIGIN_REGEX`
+   (set in `render.yaml`), so there's nothing else to wire up.
 
 ---
 
