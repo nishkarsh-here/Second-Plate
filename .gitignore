@@ -1,0 +1,38 @@
+# ---- Python / backend ----
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.joblib
+*.pkl
+backend/app/ml/artifacts/*.joblib
+backend/app/ml/artifacts/*.json
+local.db
+*.sqlite
+*.sqlite3
+
+# ---- Node / frontend ----
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.local
+
+# ---- Env / secrets ----
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+
+# ---- Editor / OS ----
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+
+# ---- Docker ----
+*.pid

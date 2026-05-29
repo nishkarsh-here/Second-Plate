@@ -1,0 +1,7 @@
+Alembic migrations for SecondPlate.
+
+The database URL is read from app settings (the DATABASE_URL env var), so the
+same migrations apply to SQLite (local) and PostgreSQL (Docker / Render).
+
+  alembic upgrade head        # apply migrations
+  alembic revision --autogenerate -m "msg"   # create a new migration

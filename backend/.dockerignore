@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+*.sqlite
+*.sqlite3
+local.db
+app/ml/artifacts/*.joblib
+app/ml/artifacts/*.json
+.pytest_cache/
+.env

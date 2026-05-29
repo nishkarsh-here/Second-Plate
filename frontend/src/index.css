@@ -1,0 +1,83 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Warm, optimistic light theme (default, the one we polish). */
+    --background: 40 33% 97%;
+    --foreground: 20 14% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14% 16%;
+    --primary: 142 70% 34%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 22% 93%;
+    --secondary-foreground: 20 14% 22%;
+    --muted: 40 18% 93%;
+    --muted-foreground: 25 8% 42%;
+    --accent: 40 30% 91%;
+    --accent-foreground: 20 14% 22%;
+    --border: 30 16% 87%;
+    --input: 30 16% 87%;
+    --ring: 142 70% 34%;
+    --radius: 1rem;
+  }
+
+  .dark {
+    --background: 24 12% 9%;
+    --foreground: 40 20% 92%;
+    --card: 24 12% 12%;
+    --card-foreground: 40 20% 92%;
+    --popover: 24 12% 12%;
+    --popover-foreground: 40 20% 92%;
+    --primary: 142 56% 46%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 24 8% 18%;
+    --secondary-foreground: 40 20% 92%;
+    --muted: 24 8% 17%;
+    --muted-foreground: 30 6% 62%;
+    --accent: 24 8% 20%;
+    --accent-foreground: 40 20% 92%;
+    --border: 24 8% 22%;
+    --input: 24 8% 22%;
+    --ring: 142 56% 46%;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer components {
+  /* Shimmer skeleton (used instead of spinners). */
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-muted;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.06),
+      transparent
+    );
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+/* Leaflet: round the map and tame its default fonts/z-index. */
+.leaflet-container {
+  font-family: inherit;
+  border-radius: var(--radius);
+  z-index: 0;
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 0.75rem;
+}
