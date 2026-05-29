@@ -13,6 +13,17 @@ frontend.
 
 ---
 
+## 🟢 Live demo
+
+- **Web app:** <https://secondplate-pi.vercel.app>
+- **API + Swagger docs:** <https://secondplate-api.onrender.com/docs>
+
+> Hosted free on Vercel (frontend) + Render (API + PostgreSQL). The API sleeps
+> after ~15 min idle, so the **first load after a quiet spell shows skeleton
+> loaders for ~30–60s** while it wakes — then real data fills in.
+
+---
+
 ## 🚀 Quick start (Docker)
 
 ```bash
@@ -393,6 +404,19 @@ automatically — nothing to copy/paste. Then jump to the Vercel section.
    (e.g. `https://secondplate-api.onrender.com`).
 3. Deploy. CORS for `*.vercel.app` is already allowed via `CORS_ORIGIN_REGEX`
    (set in `render.yaml`), so there's nothing else to wire up.
+
+### Keeping the free API warm (optional)
+
+Render's free tier sleeps after ~15 min idle. The repo includes a GitHub Actions
+workflow ([`.github/workflows/keep-alive.yml`](.github/workflows/keep-alive.yml))
+that pings `/health` every ~10 minutes to keep it responsive during demos.
+
+- It runs automatically once the repo is on GitHub (check the **Actions** tab and
+  enable workflows if prompted). **Disable it when you don't need it** — keeping a
+  free instance always awake consumes your free-tier hours.
+- GitHub's scheduled runs can be delayed by several minutes; for rock-solid
+  uptime use a dedicated pinger like **UptimeRobot** (free, 5-min interval)
+  against `https://secondplate-api.onrender.com/health`.
 
 ---
 
