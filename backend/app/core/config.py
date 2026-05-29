@@ -7,9 +7,10 @@ Docker, Render) or SQLite (zero-setup local dev) purely by changing
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -33,7 +34,12 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./local.db"
 
     # --- CORS ---
-    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    # NoDecode: take the raw env string (comma-separated) rather than letting
+    # pydantic-settings JSON-decode the list; _split_cors turns it into a list.
+    cors_origins: Annotated[list[str], NoDecode] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ]
     # Optional regex for dynamic origins (e.g. Vercel preview/prod *.vercel.app).
     cors_origin_regex: str | None = None
 
