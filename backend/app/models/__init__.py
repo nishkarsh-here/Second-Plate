@@ -11,11 +11,13 @@ from app.models.enums import (
     FoodCategory,
     ListingStatus,
     RecipientType,
+    UserRole,
 )
 from app.models.food_listing import FoodListing
 from app.models.impact_log import ImpactLog
 from app.models.pickup import Pickup
 from app.models.recipient import Recipient
+from app.models.user import User
 
 __all__ = [
     "DonationHistory",
@@ -28,4 +30,6 @@ __all__ = [
     "Pickup",
     "Recipient",
     "RecipientType",
+    "User",
+    "UserRole",
 ]

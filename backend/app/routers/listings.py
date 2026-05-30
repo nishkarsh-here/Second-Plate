@@ -4,8 +4,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.orm import Session
 
+from app.core.deps import get_current_user_optional
+from app.core.errors import BadRequestError
 from app.db.session import get_db
-from app.models.enums import FoodCategory, ListingStatus
+from app.models.enums import FoodCategory, ListingStatus, UserRole
+from app.models.user import User
 from app.schemas.listing import ListingCreate, ListingDetail, ListingOut
 from app.schemas.pickup import ClaimRequest, PickupOut
 from app.services import listings_service
@@ -19,7 +22,16 @@ router = APIRouter(prefix="/listings", tags=["listings"])
     status_code=status.HTTP_201_CREATED,
     summary="Create a surplus food listing (donor)",
 )
-def create_listing(payload: ListingCreate, db: Session = Depends(get_db)) -> ListingOut:
+def create_listing(
+    payload: ListingCreate,
+    db: Session = Depends(get_db),
+    user: User | None = Depends(get_current_user_optional),
+) -> ListingOut:
+    # Authenticated donors post as themselves; guests pass a donor_id.
+    if user is not None and user.role == UserRole.donor and user.donor_id:
+        payload.donor_id = user.donor_id
+    if payload.donor_id is None:
+        raise BadRequestError("Sign in as a donor, or provide a donor_id.")
     return listings_service.create_listing(db, payload)
 
 
@@ -72,5 +84,11 @@ def claim_listing(
     payload: ClaimRequest,
     listing_id: int = Path(..., ge=1),
     db: Session = Depends(get_db),
+    user: User | None = Depends(get_current_user_optional),
 ) -> PickupOut:
+    # Authenticated recipients claim as themselves; guests pass a recipient_id.
+    if user is not None and user.role == UserRole.recipient and user.recipient_id:
+        payload.recipient_id = user.recipient_id
+    if payload.recipient_id is None:
+        raise BadRequestError("Sign in as a recipient, or provide a recipient_id.")
     return listings_service.claim_listing(db, listing_id, payload)

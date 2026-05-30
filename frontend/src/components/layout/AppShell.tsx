@@ -5,6 +5,7 @@ import { Topbar } from "./Topbar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useDonors, useRecipients } from "@/lib/queries";
 import { useAppState } from "@/state/appState";
+import { useAuth } from "@/state/auth";
 import { cn } from "@/lib/utils";
 
 export function AppShell() {
@@ -12,19 +13,29 @@ export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: donors } = useDonors();
   const { data: recipients } = useRecipients();
-  const { donorId, setDonorId, recipientId, setRecipientId, setLocation } = useAppState();
+  const { setRole, donorId, setDonorId, recipientId, setRecipientId, setLocation } = useAppState();
+  const { user, status } = useAuth();
 
-  // Default the active identities once reference data arrives.
+  // When signed in, adopt the account's role, identity and location.
   useEffect(() => {
-    if (donorId == null && donors?.length) setDonorId(donors[0].id);
-  }, [donors, donorId, setDonorId]);
+    if (!user) return;
+    setRole(user.role);
+    if (user.role === "donor" && user.donor_id != null) setDonorId(user.donor_id);
+    if (user.role === "recipient" && user.recipient_id != null) setRecipientId(user.recipient_id);
+    if (user.lat != null && user.lng != null) setLocation({ lat: user.lat, lng: user.lng });
+  }, [user, setRole, setDonorId, setRecipientId, setLocation]);
+
+  // Guest demo: default the active identities once reference data arrives.
+  useEffect(() => {
+    if (status === "guest" && donorId == null && donors?.length) setDonorId(donors[0].id);
+  }, [status, donors, donorId, setDonorId]);
 
   useEffect(() => {
-    if (recipientId == null && recipients?.length) {
+    if (status === "guest" && recipientId == null && recipients?.length) {
       setRecipientId(recipients[0].id);
       setLocation({ lat: recipients[0].lat, lng: recipients[0].lng });
     }
-  }, [recipients, recipientId, setRecipientId, setLocation]);
+  }, [status, recipients, recipientId, setRecipientId, setLocation]);
 
   return (
     <div className="min-h-screen bg-background">

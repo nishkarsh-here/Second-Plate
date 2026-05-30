@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.errors import AppError
 from app.ml import model_store
-from app.routers import impact, listings, meta, ml, predictions
+from app.routers import auth, impact, listings, meta, ml, predictions
 from app.schemas.common import HealthResponse
 
 logging.basicConfig(level=getattr(logging, settings.log_level.upper(), logging.INFO))
@@ -28,6 +28,7 @@ OPENAPI_TAGS = [
     {"name": "impact", "description": "Aggregated rescue impact: meals, kg saved, CO2e, people served."},
     {"name": "predictions", "description": "Per-donor next-day surplus forecasts with explainability."},
     {"name": "ml", "description": "Model lifecycle (retrain + metrics)."},
+    {"name": "auth", "description": "Registration, login and the current user."},
     {"name": "reference", "description": "Donors and recipients reference data."},
     {"name": "meta", "description": "Health and service metadata."},
 ]
@@ -81,7 +82,14 @@ async def handle_validation_error(_: Request, exc: RequestValidationError) -> JS
     return JSONResponse(status_code=422, content=jsonable_encoder({"detail": exc.errors()}))
 
 
-for router in (meta.router, listings.router, impact.router, predictions.router, ml.router):
+for router in (
+    auth.router,
+    meta.router,
+    listings.router,
+    impact.router,
+    predictions.router,
+    ml.router,
+):
     app.include_router(router, prefix=settings.api_prefix)
 
 

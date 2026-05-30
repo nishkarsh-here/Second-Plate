@@ -1,5 +1,5 @@
-import { useLocation } from "react-router-dom";
-import { Menu, Moon, PanelLeft, Sun } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { LogOut, Menu, Moon, PanelLeft, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -11,6 +11,7 @@ import {
 import { PAGE_TITLES } from "./nav";
 import { useTheme } from "@/state/theme";
 import { useAppState } from "@/state/appState";
+import { useAuth } from "@/state/auth";
 import { useDonors, useRecipients } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,8 @@ export function Topbar({
     useAppState();
   const { data: donors } = useDonors();
   const { data: recipients } = useRecipients();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const onPickDonor = (id: number) => {
     setDonorId(id);
@@ -58,68 +61,88 @@ export function Topbar({
       <h1 className="truncate text-lg font-semibold">{title}</h1>
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
-        {/* Role switcher */}
-        <div className="hidden rounded-lg border border-border bg-card p-0.5 sm:flex">
-          {(["recipient", "donor"] as const).map((r) => (
-            <button
-              key={r}
-              onClick={() => setRole(r)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-semibold capitalize transition-colors",
-                role === r
-                  ? "bg-primary text-primary-foreground shadow-soft"
-                  : "text-muted-foreground hover:text-foreground",
+        {user ? (
+          <>
+            <div className="hidden text-right sm:block">
+              <div className="text-sm font-semibold leading-tight">{user.name}</div>
+              <div className="text-xs capitalize text-muted-foreground">{user.role}</div>
+            </div>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
+              {user.name.slice(0, 1).toUpperCase()}
+            </div>
+            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
+              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+            <Button variant="outline" size="sm" onClick={logout}>
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Log out</span>
+            </Button>
+          </>
+        ) : (
+          <>
+            {/* Guest role switcher (demo mode) */}
+            <div className="hidden rounded-lg border border-border bg-card p-0.5 sm:flex">
+              {(["recipient", "donor"] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRole(r)}
+                  className={cn(
+                    "rounded-md px-3 py-1.5 text-xs font-semibold capitalize transition-colors",
+                    role === r
+                      ? "bg-primary text-primary-foreground shadow-soft"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {r === "recipient" ? "I'm a Recipient" : "I'm a Donor"}
+                </button>
+              ))}
+            </div>
+
+            {/* Identity picker for the active role */}
+            <div className="hidden w-44 md:block">
+              {role === "recipient" ? (
+                <Select
+                  value={recipientId != null ? String(recipientId) : undefined}
+                  onValueChange={(v) => onPickRecipient(Number(v))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Recipient" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {recipients?.map((r) => (
+                      <SelectItem key={r.id} value={String(r.id)}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Select
+                  value={donorId != null ? String(donorId) : undefined}
+                  onValueChange={(v) => onPickDonor(Number(v))}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Donor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {donors?.map((d) => (
+                      <SelectItem key={d.id} value={String(d.id)}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
-            >
-              {r === "recipient" ? "I'm a Recipient" : "I'm a Donor"}
-            </button>
-          ))}
-        </div>
+            </div>
 
-        {/* Identity picker for the active role */}
-        <div className="hidden w-44 md:block">
-          {role === "recipient" ? (
-            <Select
-              value={recipientId != null ? String(recipientId) : undefined}
-              onValueChange={(v) => onPickRecipient(Number(v))}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Recipient" />
-              </SelectTrigger>
-              <SelectContent>
-                {recipients?.map((r) => (
-                  <SelectItem key={r.id} value={String(r.id)}>
-                    {r.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <Select
-              value={donorId != null ? String(donorId) : undefined}
-              onValueChange={(v) => onPickDonor(Number(v))}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Donor" />
-              </SelectTrigger>
-              <SelectContent>
-                {donors?.map((d) => (
-                  <SelectItem key={d.id} value={String(d.id)}>
-                    {d.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-
-        <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
-          {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-        </Button>
-
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
-          {role === "recipient" ? "R" : "D"}
-        </div>
+            <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
+              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+            <Button size="sm" onClick={() => navigate("/login")}>
+              Sign in
+            </Button>
+          </>
+        )}
       </div>
     </header>
   );

@@ -167,3 +167,31 @@ export interface Health {
   database: string;
   model_loaded: boolean;
 }
+
+export type AuthRole = "donor" | "recipient";
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  role: AuthRole;
+  name: string;
+  lat: number | null;
+  lng: number | null;
+  donor_id: number | null;
+  recipient_id: number | null;
+}
+
+export interface RegisterPayload {
+  email: string;
+  password: string;
+  name: string;
+  role: AuthRole;
+  donor_type?: DonorType;
+  recipient_type?: RecipientType;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+}

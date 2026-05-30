@@ -35,7 +35,8 @@ class ListingCreate(BaseModel):
         }
     )
 
-    donor_id: int
+    # Optional: when omitted, taken from the authenticated donor's account.
+    donor_id: int | None = None
     food_type: str = Field(..., min_length=2, max_length=120)
     category: FoodCategory
     servings: int = Field(..., gt=0, le=100000)

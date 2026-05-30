@@ -33,3 +33,8 @@ class ListingStatus(str, enum.Enum):
     claimed = "claimed"
     picked_up = "picked_up"
     expired = "expired"
+
+
+class UserRole(str, enum.Enum):
+    donor = "donor"
+    recipient = "recipient"

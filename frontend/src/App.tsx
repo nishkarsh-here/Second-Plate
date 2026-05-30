@@ -5,10 +5,12 @@ import MapPage from "@/pages/MapPage";
 import Impact from "@/pages/Impact";
 import Predictions from "@/pages/Predictions";
 import MyListings from "@/pages/MyListings";
+import Login from "@/pages/Login";
 
 export default function App() {
   return (
     <Routes>
+      <Route path="/login" element={<Login />} />
       <Route element={<AppShell />}>
         <Route path="/" element={<BrowseRescues />} />
         <Route path="/map" element={<MapPage />} />

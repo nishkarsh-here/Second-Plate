@@ -1,5 +1,7 @@
 import axios from "axios";
 import type {
+  AuthResponse,
+  AuthUser,
   Donor,
   Health,
   ImpactSummary,
@@ -10,6 +12,7 @@ import type {
   Pickup,
   PredictionExplain,
   Recipient,
+  RegisterPayload,
   RetrainMetrics,
   SurplusPrediction,
   TrendsResponse,
@@ -17,6 +20,13 @@ import type {
 
 // Empty base in dev -> Vite proxies /api and /health to the backend.
 const client = axios.create({ baseURL: import.meta.env.VITE_API_BASE || "" });
+
+// Attach the bearer token (if present) to every request.
+client.interceptors.request.use((config) => {
+  const token = localStorage.getItem("sp-token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
 export interface BrowseParams {
   lat?: number;
@@ -53,6 +63,13 @@ export const Api = {
   explain: (donorId: number) =>
     client.get<PredictionExplain>(`/api/predictions/${donorId}/explain`).then((r) => r.data),
   retrain: () => client.post<RetrainMetrics>("/api/ml/retrain").then((r) => r.data),
+  auth: {
+    register: (body: RegisterPayload) =>
+      client.post<AuthResponse>("/api/auth/register", body).then((r) => r.data),
+    login: (body: { email: string; password: string }) =>
+      client.post<AuthResponse>("/api/auth/login", body).then((r) => r.data),
+    me: () => client.get<AuthUser>("/api/auth/me").then((r) => r.data),
+  },
 };
 
 export function apiErrorMessage(err: unknown): string {

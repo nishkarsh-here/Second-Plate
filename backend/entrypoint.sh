@@ -28,8 +28,15 @@ alembic upgrade head
 echo "==> Seeding synthetic data (if empty)..."
 python -m app.seed.seed --if-empty
 
-echo "==> Training the surplus model..."
-python -m app.ml.train
+echo "==> Refreshing live demo listings (fresh timestamps each boot)..."
+python -m app.seed.seed --refresh-live
+
+if [ -f app/ml/artifacts/surplus_model.joblib ]; then
+  echo "==> Model already present (baked at build) — skipping training."
+else
+  echo "==> Training the surplus model..."
+  python -m app.ml.train
+fi
 
 echo "==> Starting API on :8000"
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000

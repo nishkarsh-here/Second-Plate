@@ -11,7 +11,8 @@ from app.schemas.recipient import RecipientBrief
 class ClaimRequest(BaseModel):
     """Recipient claims a listing for pickup."""
 
-    recipient_id: int
+    # Optional: when omitted, taken from the authenticated recipient's account.
+    recipient_id: int | None = None
     scheduled_at: datetime | None = Field(
         default=None, description="Defaults to now if omitted"
     )

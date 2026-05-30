@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     seed_on_startup: bool = False
     seed_random_state: int = 42
 
+    # --- Auth ---
+    secret_key: str = "dev-insecure-secret-change-me"  # override in production
+    access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def _split_cors(cls, value: object) -> object:

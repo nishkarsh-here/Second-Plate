@@ -35,6 +35,10 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
         // Freshness-urgency system (consistent green / amber / rose).
         fresh: {
           green: "#16A34A",

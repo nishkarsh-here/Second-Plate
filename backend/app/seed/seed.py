@@ -27,7 +27,7 @@ from datetime import date, datetime, time, timedelta, timezone
 
 import numpy as np
 from faker import Faker
-from sqlalchemy import delete, insert
+from sqlalchemy import delete, insert, select
 from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
@@ -43,6 +43,7 @@ from app.models import (
     Pickup,
     Recipient,
     RecipientType,
+    User,
 )
 from app.services.impact_service import impact_for_servings
 from app.services.matching import rank_recipients
@@ -159,9 +160,80 @@ def _weighted_category(weights: dict[FoodCategory, float], rng: random.Random) -
 
 def reset(db: Session) -> None:
     """Delete all rows in FK-safe order (idempotent re-seed)."""
-    for model in (ImpactLog, Pickup, FoodListing, DonationHistory, Recipient, Donor):
+    for model in (ImpactLog, Pickup, FoodListing, DonationHistory, User, Recipient, Donor):
         db.execute(delete(model))
     db.commit()
+
+
+def refresh_live_listings(db: Session, random_state: int | None = None) -> int:
+    """Regenerate the live (available/claimed) demo listings with fresh
+    timestamps. Safe to run on every boot: leaves donors, recipients, historical
+    pickups, impact and user accounts untouched, so the browse/map never go
+    stale even though the database persists across deploys."""
+    pyrng = random.Random(random_state)
+    rng = np.random.default_rng(random_state)
+
+    stale_ids = list(
+        db.scalars(
+            select(FoodListing.id).where(
+                FoodListing.status.in_([ListingStatus.available, ListingStatus.claimed])
+            )
+        ).all()
+    )
+    if stale_ids:
+        db.execute(delete(Pickup).where(Pickup.listing_id.in_(stale_ids)))
+        db.execute(delete(FoodListing).where(FoodListing.id.in_(stale_ids)))
+        db.commit()
+
+    donors = list(db.scalars(select(Donor)).all())
+    recipients = list(db.scalars(select(Recipient)).all())
+    if not donors or not recipients:
+        return 0
+    recip_locs = [(r.id, r.lat, r.lng) for r in recipients]
+
+    now = datetime.now(timezone.utc)
+    claim_targets: list[FoodListing] = []
+    created = 0
+    for _ in range(58):
+        donor = pyrng.choice(donors)
+        lo, hi = BASE_RANGE[donor.type.value]
+        category = _weighted_category(CATEGORY_WEIGHTS[donor.type.value], pyrng)
+        servings = max(4, int(round(pyrng.uniform(lo, hi) * pyrng.uniform(0.3, 0.8))))
+        if pyrng.random() < 0.35:
+            expires = now + timedelta(minutes=pyrng.randint(20, 6 * 60))
+        else:
+            expires = now + timedelta(hours=pyrng.randint(8, 5 * 24))
+        listing = FoodListing(
+            donor_id=donor.id,
+            food_type=pyrng.choice(FOOD_NAMES[category]),
+            category=category,
+            servings=servings,
+            prepared_at=now - timedelta(minutes=pyrng.randint(20, 240)),
+            expires_at=expires,
+            status=ListingStatus.available,
+            lat=_jitter_coord(rng, donor.lat),
+            lng=_jitter_coord(rng, donor.lng),
+        )
+        db.add(listing)
+        created += 1
+        if pyrng.random() < 0.25:
+            claim_targets.append(listing)
+    db.flush()
+
+    for listing in claim_targets:
+        listing.status = ListingStatus.claimed
+        nearby = rank_recipients(listing.lat, listing.lng, recip_locs, limit=3)
+        db.add(
+            Pickup(
+                listing_id=listing.id,
+                recipient_id=pyrng.choice(nearby).recipient_id,
+                scheduled_at=now + timedelta(minutes=pyrng.randint(20, 90)),
+                completed_at=None,
+                servings_rescued=listing.servings,
+            )
+        )
+    db.commit()
+    return created
 
 
 def seed(
@@ -339,8 +411,12 @@ def seed(
             CATEGORY_WEIGHTS[p["type"]], pyrng
         )
         servings = max(4, int(round(p["base"] * pyrng.uniform(0.3, 0.8))))
-        # Spread expiry from 15 min to 20 h out for a full green/amber/rose mix.
-        expires = now + timedelta(minutes=pyrng.randint(15, 20 * 60))
+        # ~35% expire soon (amber/rose urgency); the rest last up to ~5 days so the
+        # demo's browse/map stay populated for days after a single seed.
+        if pyrng.random() < 0.35:
+            expires = now + timedelta(minutes=pyrng.randint(20, 6 * 60))
+        else:
+            expires = now + timedelta(hours=pyrng.randint(8, 5 * 24))
         prepared = now - timedelta(minutes=pyrng.randint(20, 240))
         listing = FoodListing(
             donor_id=donor.id,
@@ -402,10 +478,19 @@ def main() -> None:
         action="store_true",
         help="Skip seeding when donors already exist (safe to run on every boot).",
     )
+    parser.add_argument(
+        "--refresh-live",
+        action="store_true",
+        help="Only regenerate the live demo listings with fresh timestamps.",
+    )
     args = parser.parse_args()
 
     db = SessionLocal()
     try:
+        if args.refresh_live:
+            count = refresh_live_listings(db)
+            print(f"Refreshed live listings: {count}")
+            return
         if args.if_empty:
             existing = db.scalar(select(func.count()).select_from(Donor)) or 0
             if existing:
