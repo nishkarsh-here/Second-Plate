@@ -8,7 +8,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { to: "/", label: "Browse Rescues", icon: Search, end: true },
+  { to: "/browse", label: "Browse Rescues", icon: Search },
   { to: "/map", label: "Map", icon: Map },
   { to: "/impact", label: "Impact", icon: BarChart3 },
   { to: "/predictions", label: "Predictions", icon: Sparkles },
@@ -16,7 +16,7 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 export const PAGE_TITLES: Record<string, string> = {
-  "/": "Browse Rescues",
+  "/browse": "Browse Rescues",
   "/map": "Rescue Map",
   "/impact": "Impact Dashboard",
   "/predictions": "Surplus Predictions",

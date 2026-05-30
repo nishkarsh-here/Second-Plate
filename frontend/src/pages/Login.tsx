@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Utensils } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,9 +32,12 @@ const RECIPIENT_TYPES: { value: RecipientType; label: string }[] = [
 
 export default function Login() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { login, register } = useAuth();
 
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup">(
+    params.get("signup") ? "signup" : "login",
+  );
   const [role, setRole] = useState<AuthRole>("recipient");
   const [name, setName] = useState("");
   const [orgType, setOrgType] = useState<string>("ngo");
@@ -66,7 +69,7 @@ export default function Login() {
             : { recipient_type: orgType as RecipientType }),
         });
       }
-      navigate("/");
+      navigate("/browse");
     } catch (err) {
       setError(apiErrorMessage(err));
     } finally {
@@ -194,7 +197,7 @@ export default function Login() {
 
             <button
               type="button"
-              onClick={() => navigate("/")}
+              onClick={() => navigate("/browse")}
               className="mt-4 w-full text-center text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               or explore the live demo as a guest →
