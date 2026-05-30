@@ -28,6 +28,9 @@ services:
           property: connectionString
       - key: ENVIRONMENT
         value: production
+      # Secure JWT signing key, generated once by Render (never in the repo).
+      - key: SECRET_KEY
+        generateValue: true
       # Allow any Vercel domain (preview + production) without knowing it ahead of time.
       - key: CORS_ORIGIN_REGEX
         value: https://.*\.vercel\.app

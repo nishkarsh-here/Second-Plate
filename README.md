@@ -36,8 +36,9 @@ That's it. Compose will:
 1. start **PostgreSQL 15**,
 2. run **Alembic migrations**,
 3. **seed** ~14 months of signal-rich synthetic data (only if the DB is empty),
-4. **train** the surplus model, and
-5. serve the API and the web app.
+4. **refresh** the live demo listings with fresh timestamps,
+5. load the **surplus model** (baked into the image at build time — see the ML section), and
+6. serve the API and the web app.
 
 Then open:
 
@@ -54,6 +55,11 @@ Then open:
 
 ## 🧭 Product tour
 
+- **Landing page** (`/`) — explains the product and offers **Sign up**, **Log in**
+  or **Continue as guest**. The app itself lives under `/browse`.
+- **Accounts** — register / sign in as a **donor** or a **recipient** (JWT auth);
+  once signed in you act as your own organisation. Prefer not to? Explore the whole
+  thing as a **guest** — the role switcher in the top bar lets guests demo both sides.
 - **Browse Rescues** — card grid of available listings, each with a live
   freshness-urgency badge (🟢 fresh / 🟡 expiring soon / 🔴 critical), a ticking
   countdown, donor, distance, and one-click **Claim pickup**.
@@ -66,8 +72,7 @@ Then open:
   and a **"Why?"** drawer showing exactly which features drove each prediction.
 - **My Listings** — donor view to post a new listing (validated form) and track
   the status of past donations.
-- Toggle **"I'm a Recipient" / "I'm a Donor"** in the top bar to demo both
-  sides; light/dark themes; fully responsive.
+- Light / dark themes; fully responsive (the sidebar collapses to a drawer on mobile).
 
 ### Screenshots
 
@@ -109,8 +114,9 @@ _Add images under `docs/screenshots/` and they'll render here._
                          └────────────────┘     └──────────────────┘
 ```
 
-The same code runs on **PostgreSQL** (Docker / Render) or **SQLite** (zero-setup
-local dev) — only `DATABASE_URL` changes. See
+The SPA serves a public **landing page** and a **JWT auth** flow in front of the
+app shell. The same backend code runs on **PostgreSQL** (Docker / Render) or
+**SQLite** (zero-setup local dev) — only `DATABASE_URL` changes. See
 [Notable engineering decisions](#-notable-engineering-decisions).
 
 ---
@@ -119,7 +125,7 @@ local dev) — only `DATABASE_URL` changes. See
 
 | Layer | Choice |
 | --- | --- |
-| Backend | Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy 2.0, Alembic, Uvicorn |
+| Backend | Python 3.11+, FastAPI, Pydantic v2, SQLAlchemy 2.0, Alembic, Uvicorn, PyJWT (auth) |
 | Database | PostgreSQL 15 (SQLite-compatible for local dev) |
 | ML / data | scikit-learn (GradientBoostingRegressor), pandas, NumPy, joblib |
 | Seeding | Faker |
@@ -135,24 +141,27 @@ local dev) — only `DATABASE_URL` changes. See
 ├── backend/
 │   ├── app/
 │   │   ├── main.py            # FastAPI app: CORS, routers, error handlers, startup
-│   │   ├── core/              # config (pydantic-settings), errors, time helpers
+│   │   ├── core/              # config, errors, time, security (JWT/PBKDF2), deps (auth)
 │   │   ├── db/                # engine/session, declarative base, UTCDateTime type
-│   │   ├── models/            # SQLAlchemy ORM models + enums
-│   │   ├── schemas/           # Pydantic v2 request/response models
-│   │   ├── routers/           # thin endpoints (listings, impact, predictions, ml, meta)
-│   │   ├── services/          # geo, urgency, listings, impact (SQL agg), matching
+│   │   ├── models/            # SQLAlchemy ORM models + enums (donor … user)
+│   │   ├── schemas/           # Pydantic v2 request/response models (+ auth)
+│   │   ├── routers/           # auth, listings, impact, predictions, ml, meta
+│   │   ├── services/          # geo, urgency, listings, impact (SQL agg), matching, auth
 │   │   ├── ml/                # features, train, predict, model_store
-│   │   └── seed/              # Faker seeder with real signal
+│   │   └── seed/              # Faker seeder with real signal (+ live-listing refresh)
 │   ├── alembic/               # migrations
+│   ├── tests/                 # pytest — urgency/geo units + API + auth
 │   ├── Dockerfile · entrypoint.sh · requirements.txt · .env.example
 ├── frontend/
 │   ├── src/
 │   │   ├── components/        # ui/ primitives, layout, listings, impact, predictions, map
-│   │   ├── pages/             # Browse, Map, Impact, Predictions, MyListings
+│   │   ├── pages/             # Landing, Login, Browse, Map, Impact, Predictions, MyListings
 │   │   ├── lib/               # api client, types, queries, formatters
-│   │   ├── state/             # theme + app-state (role/identity/location) contexts
+│   │   ├── state/             # theme, auth, app-state (role/identity/location) contexts
 │   │   └── hooks/             # useCountdown
-│   ├── Dockerfile · nginx.conf · .env.example
+│   ├── Dockerfile · nginx.conf · vercel.json · .env.example
+├── render.yaml                # Render Blueprint (Postgres + API)
+├── .github/workflows/         # keep-alive ping
 └── docker-compose.yml
 ```
 
@@ -199,10 +208,19 @@ Normalised, with foreign keys, check constraints, indexes and enum-typed columns
                                           └─────────────────┘
 ```
 
+A **users** table backs authentication — one account maps to one donor *or*
+recipient profile:
+
+```
+users: id (PK) · email (unique) · password_hash · role [enum donor/recipient]
+       · donor_id (FK → donors, nullable) · recipient_id (FK → recipients, nullable)
+       · created_at
+```
+
 **Enums** — `donor.type` (restaurant/canteen/hostel/event), `recipient.type`
 (ngo/shelter/community_kitchen), `food.category`
 (cooked/bakery/produce/packaged), `listing.status`
-(available/claimed/picked_up/expired).
+(available/claimed/picked_up/expired), `user.role` (donor/recipient).
 
 **Constraints** — `servings > 0`, `expires_at > prepared_at`,
 `servings_rescued > 0`, non-negative impact values; a listing has at most one
@@ -275,6 +293,11 @@ tail:
 `roll30`, `is_holiday` and `day_of_week` also contributing — i.e. the model is
 recovering the signal the seeder injected.
 
+**Baked at build time.** The Docker image trains the model during `docker build`
+and ships the serialized artifact, so a cold-restarting container serves
+immediately instead of retraining under a throttled free-tier CPU. `/api/ml/retrain`
+still retrains on live data on demand.
+
 **Explainability** (`app/ml/predict.py`) — global `feature_importances_` plus a
 **per-donor local attribution** computed by one-at-a-time ablation: each
 feature is replaced with its training mean and we measure how the prediction
@@ -305,6 +328,9 @@ Base path `/api`. Full interactive docs at `/docs`.
 | Method | Path | Description |
 | --- | --- | --- |
 | `GET` | `/health` | Service health + whether the model is loaded |
+| `POST` | `/api/auth/register` | Create a donor or recipient account → returns a JWT |
+| `POST` | `/api/auth/login` | Log in with email + password → returns a JWT |
+| `GET` | `/api/auth/me` | The current authenticated user |
 | `GET` | `/api/donors` | List donors |
 | `GET` | `/api/recipients` | List recipients |
 | `POST` | `/api/listings` | Donor posts a surplus listing |
@@ -318,7 +344,9 @@ Base path `/api`. Full interactive docs at `/docs`.
 | `GET` | `/api/predictions/{donor_id}/explain` | Full feature attribution for one donor |
 | `POST` | `/api/ml/retrain` | Retrain on current data, return MAE/RMSE/R² |
 
-Errors use a consistent shape: `{ "detail": "..." }` (422 for validation).
+`POST /api/listings` and `…/{id}/claim` use the **signed-in** donor / recipient
+when a bearer token is present, or accept an explicit `donor_id` / `recipient_id`
+for guests. Errors use a consistent shape: `{ "detail": "..." }` (422 for validation).
 
 ---
 
@@ -359,6 +387,9 @@ npm run dev                     # http://localhost:5173 (proxies /api -> :8000)
 | `DATABASE_URL` | `sqlite:///./local.db` | Use `postgresql+psycopg2://…` in prod |
 | `CORS_ORIGINS` | `http://localhost:5173,…` | Comma-separated |
 | `MODEL_DIR` | `app/ml/artifacts` | Where the model is serialised |
+| `CORS_ORIGIN_REGEX` | _(none)_ | Allow dynamic origins, e.g. `https://.*\.vercel\.app` |
+| `SECRET_KEY` | dev placeholder | JWT signing key — set a strong value in prod (the Blueprint auto-generates one) |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `10080` | JWT lifetime (7 days) |
 | `ENVIRONMENT` | `development` | |
 
 **Frontend** (`frontend/.env.example`)
@@ -438,6 +469,17 @@ that pings `/health` every ~10 minutes to keep it responsive during demos.
 - **Explainability without SHAP** — exact one-at-a-time ablation against
   training means keeps the dependency surface small and the explanation
   intuitive.
+- **Auth that keeps the demo open.** Real JWT accounts for donors and recipients
+  sit *alongside* a guest mode: create/claim use the signed-in identity when a
+  token is present but still accept an explicit id, so the public link works
+  instantly without forcing a sign-up. Passwords are salted + stretched with
+  stdlib **PBKDF2** (no bcrypt build step).
+- **Model baked into the image** at build time so free-tier cold starts serve in
+  seconds instead of retraining; a GitHub Actions ping keeps the instance warm.
+- **Self-healing demo data.** Because the production database persists,
+  `entrypoint.sh` regenerates the live (available/claimed) listings with fresh
+  timestamps on every boot — so browse/map never go stale — while donors, history,
+  impact and user accounts are left untouched.
 
 ---
 
