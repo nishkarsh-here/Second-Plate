@@ -74,14 +74,6 @@ Then open:
   the status of past donations.
 - Light / dark themes; fully responsive (the sidebar collapses to a drawer on mobile).
 
-### Screenshots
-
-_Add images under `docs/screenshots/` and they'll render here._
-
-| Browse | Impact | Predictions |
-| --- | --- | --- |
-| ![Browse](docs/screenshots/browse.png) | ![Impact](docs/screenshots/impact.png) | ![Predictions](docs/screenshots/predictions.png) |
-
 ---
 
 ## 🏗️ Architecture
